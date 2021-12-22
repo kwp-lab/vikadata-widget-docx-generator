@@ -1,0 +1,47 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+.idea
+
+dist
+.doc
+.build.env
+
+/blueprint-templates
+
+# dependencies
+**/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/packages/*/coverage
+
+# production
+/packages/*/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# yarn cache
+.yarn/cache/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.yarn/unplugged
+
+# vika yml will store your api token, so you need to ignore it
+.vika.yml
+
+# ignore packed files
+*.zip
+
+yarn.lock
+widget.config_*
+package-lock.json
