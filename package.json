@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "a vika widget",
   "engines": {
     "node": ">=8.x"
@@ -29,7 +29,7 @@
     "@types/react-dom": "^16.9.8",
     "@vikadata/components": "^0.0.3",
     "@vikadata/icons": "^0.0.1",
-    "@vikadata/widget-sdk": "^0.0.3",
+    "@vikadata/widget-sdk": "0.0.3",
     "docxtemplater": "^3.23.2",
     "file-saver": "^2.0.5",
     "pizzip": "^3.1.1",

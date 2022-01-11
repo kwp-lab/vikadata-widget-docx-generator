@@ -1,6 +1,6 @@
 {
-  "packageId": "wpkER4BuwjSJw",
-  "spaceId": "spcY86MVBRmyd",
+  "packageId": "wpksQCY82kXTP",
+  "spaceId": "spcBcZN1UZZJz",
   "entry": "./src/index.ts",
   "name": {
     "zh-CN": "Word文档生成器",

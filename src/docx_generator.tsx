@@ -1,7 +1,6 @@
-import { useRecords, useFields, useActiveViewId, useSelection, useCloudStorage, useSettingsButton, useViewport, useField, Field, Record, IAttachmentValue, usePrimaryField } from '@vikadata/widget-sdk';
-import { AttachmentPasteOutlined, InfoFilled } from '@vikadata/icons';
+import { useRecord, useRecords, useFields, useActiveViewId, useSelection, useCloudStorage, useSettingsButton, useViewport, useField, Field, Record, IAttachmentValue, usePrimaryField, FieldType, useDatasheet, Datasheet } from '@vikadata/widget-sdk';
 import { Button } from '@vikadata/components';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import PizZipUtils from 'pizzip/utils/index.js';
@@ -57,7 +56,7 @@ async function uploadAttachment(activeDatasheetId: String, fileBlob: Blob) {
  * @param error 
  */
 function throwError(error: any) {
-  console.log(JSON.stringify({ error: error }, replaceErrors));
+  console.log("模板解析错误", JSON.stringify({ error: error }, replaceErrors));
 
   if (error.properties && error.properties.errors instanceof Array) {
     const errorMessages = error.properties.errors
@@ -75,16 +74,35 @@ function throwError(error: any) {
  */
 function generateDocuments(selectedRecords: Record[], fields: Field[], selectedAttachmentField: Field, primaryField: Field) {
 
+
   for (let index = 0; index < selectedRecords.length; index++) {
     const record = selectedRecords[index]
     const row = {}
     const filename = record.getCellValueString(primaryField.id) || "未命名"
 
     fields.forEach(field => {
-      row[field.name] = record.getCellValueString(field.id) || "(空值)"
+      row[field.name] = record.getCellValue(field.id) || "(空值)"
+      if(field.type == FieldType.MagicLink){
+        // ttt.setLinkedInfo({
+        //   ...ttt.linkedInfo,
+        //   datasheetId: field.property.foreignDatasheetId,
+        //   recordIds: [ row[field.name][0].recordId ]
+        // })
+        // console.log("x", ttt, {
+        //   ...ttt.linkedInfo,
+        //   datasheetId: field.property.foreignDatasheetId,
+        //   recordIds: [ row[field.name][0].recordId ]
+        // })
+      }
     })
 
+    
+
     const attachements = record.getCellValue(selectedAttachmentField.id)
+    if (!attachements) {
+      alert(`在指定的附件字段中找不到word模板，请上传。record:[${filename}]`)
+      continue
+    }
     const attachmentName = attachements[0].name
 
     console.log({ row, attachements })
@@ -94,6 +112,24 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
     attachements && generateDocument(row, attachements[0], prefix + "-" + filename)
   }
 
+}
+
+/**
+ * Docxtemplater 自定义标签解析器
+ * @param tag 标签名称，eg: {产品名称} 
+ * @returns 
+ */
+function parser(tag) {
+  return {
+    get(scope, context) {
+      console.log({ tag, scope, context })
+      if (["$index", "$序号"].includes(tag)) {
+        const indexes = context.scopePathItem
+        return indexes[indexes.length]
+      }
+      return scope[tag]
+    },
+  };
 }
 
 /**
@@ -108,32 +144,32 @@ function generateDocument(row: any, selectedAttachment: IAttachmentValue, filena
 
     const zip = new PizZip(content)
 
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true
-    })
-
-    doc.setData(row)
-
     try {
-      doc.render();
-    } catch (error: any) {
-      throwError(error)
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        parser
+      })
+
+      doc.setData(row)
+
+      try {
+        doc.render();
+      } catch (error: any) {
+        throwError(error)
+      }
+
+      const out = doc.getZip().generate({
+        type: 'blob',
+        mimeType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+
+      saveAs(out, filename + ".docx")
+    } catch (error) {
+      alert(`文件 ${selectedAttachment.name} 的模板语法不正确，请检查`)
     }
 
-    // const out = doc.getZip().generate({
-    //   type: 'blob',
-    //   mimeType:
-    //     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    // });
-
-    const out = doc.getZip().generate({
-      type: 'blob',
-      mimeType:
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    });
-
-    saveAs(out, filename + ".docx")
 
     // await uploadAttachment(activeDatasheetId, out).then(res => {
     //   console.log(res)
@@ -149,29 +185,32 @@ function generateDocument(row: any, selectedAttachment: IAttachmentValue, filena
 function showReadmeInfo() {
   const wrapperStyle: React.CSSProperties = {
     width: '100%',
-    padding: '10px'
+    padding: '10px 20px'
   }
 
   const imgStyle: React.CSSProperties = {
-    width: '100%',
+    width: '80%',
     border: '1px solid #9484f1',
-    borderRadius: '4px'
+    borderRadius: '4px',
+    margin: '0 auto',
+    display: 'block',
+    maxWidth: '800px'
   }
 
 
   return (
     <div style={wrapperStyle}>
       <h1>Word文档生成器</h1>
-      <h3><b>前言</b></h3>
+      <h3><b>🤔 前言</b></h3>
       <p>你有遇到过下面这些状况吗？<br />日复一日地填写多份相同格式的 Word 文档...<br />经常因为 Word 文档搬运而加班到深夜...</p>
       <p>试试本小程序吧！让你从重复性的 Word 搬运工中解放出来！^0^</p>
 
-      <h3><b>简介</b></h3>
+      <h3><b>🎨 简介</b></h3>
       <p>本小程序可以将每一行数据填充到 Word 模板里面，从而形成一份新的 Word 文档。同时选中多行记录，即可实现批量导出 Word 文档。</p>
       <p>例如一份《录取通知书》。在日常工作中，公司HR一天可能会发送多份《录取通知书》，里面的格式都是一样的，只是“岗位”，“部门”，“候选人姓名”，“通知日期”等等这些信息要素会有所不同，但HR却需要手工重复性地复制粘贴、复制粘贴...</p>
       <p>使用本小程序后，只需要提前制作一次 Word 模板，往后的工作就只需要点一点手指头，小程序来帮你填充关键信息要素，并生成新的《录取通知书》！</p>
 
-      <h3><b>使用步骤</b></h3>
+      <h3><b>🎯 使用步骤</b></h3>
       <p>1. 提前准备好 Word 模板，在 Word 模板里面目标位置填写好维格表里的对应列名，写法跟智能公式里引用单元格值一样，在列名左右两边加上花括号，例如“<code>{'\u007B'}候选人姓名{'\u007D'}</code>”</p>
       <p>2. 将修改好的 Word 模板以附件形式上传到当前维格表的附件列里，如下图示例</p>
       <p><img src="https://s1.vika.cn/space/2021/12/02/22202756884f485dbfce5e257000644c" alt="示意图" style={imgStyle} /></p>
@@ -188,12 +227,25 @@ export const DocxGenerator: React.FC = () => {
   const [isShowingSettings, toggleSettings] = useSettingsButton()
   const activeViewId = useActiveViewId()
   const selection = useSelection()
-  const selectedRecords = useRecords(activeViewId, { ids: selection?.recordIds })
+  const selectionRecords = useRecords(activeViewId, { ids: selection?.recordIds })
   const fields = useFields(activeViewId)
   const primaryField = usePrimaryField() || fields[0]
 
+  // 读取配置
   const [fieldId] = useCloudStorage<string>('selectedAttachmentFieldId')
   const selectedAttachmentField = useField(fieldId)
+
+  const [selectedRecords, setSelectedRecords] = useState<Record[]>([])
+
+
+  console.log("selectionRecords", selectionRecords)
+
+  useEffect(() => {
+    console.log({selectionRecords})
+    if(Array.isArray(selectionRecords) && selectionRecords.length>0){
+      setSelectedRecords(selectionRecords)
+    }
+  }, [selectionRecords.length])
 
   const openSettingArea = function () {
     !isFullscreen && toggleFullscreen()
@@ -225,15 +277,15 @@ export const DocxGenerator: React.FC = () => {
             alignItems: 'center',
             width: '100%'
           }}>
-            <AttachmentPasteOutlined size="50%" color="#7B67EE" />
+            <img src='https://s1.vika.cn/space/2021/12/29/ce15dd51bb79495ab0f03ddf40d6fe92' style={{ width: '40%' }} />
+          </div>
+
+          <div style={{ textAlign: 'center' }}>
+            {(selectedRecords.length > 0) && <div>已选中 <span style={{ color: '#fb4a43', fontWeight: 'bold', fontSize: '1.5em', }}>{selectedRecords.length}</span> 条记录</div>}
           </div>
 
           <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            {(selectedRecords.length > 0) && <div>已选中 <span style={{ color: '#E33E38', fontWeight: 'bold' }}>{selectedRecords.length}</span> 条记录</div>}
-          </div>
-
-          <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <Button onClick={generateDocuments.bind(this, selectedRecords, fields, selectedAttachmentField, primaryField)} variant="fill" color="primary" >导出 Word 文档</Button>
+            <Button onClick={(e)=> generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField)} variant="fill" color="primary" >导出 Word 文档</Button>
           </div>
         </div>
       }
@@ -247,7 +299,7 @@ export const DocxGenerator: React.FC = () => {
             alignItems: 'center',
             width: '100%'
           }}>
-            <InfoFilled size="30%" />
+            <img src='https://s1.vika.cn/space/2021/12/29/5a4c225aed81490583cedbecf4bc3419' style={{ width: '30%' }} />
           </div>
           <div>请设置一个存储word模板的附件字段</div>
 
