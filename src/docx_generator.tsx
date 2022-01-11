@@ -237,6 +237,9 @@ export const DocxGenerator: React.FC = () => {
 
   const [selectedRecords, setSelectedRecords] = useState<Record[]>([])
 
+  const recordIds = selectionRecords.map((record: Record)=>{
+    return record.recordId
+  }).join(",")
 
   console.log("selectionRecords", selectionRecords)
 
@@ -245,7 +248,7 @@ export const DocxGenerator: React.FC = () => {
     if(Array.isArray(selectionRecords) && selectionRecords.length>0){
       setSelectedRecords(selectionRecords)
     }
-  }, [selectionRecords.length])
+  }, [selectionRecords.length, recordIds])
 
   const openSettingArea = function () {
     !isFullscreen && toggleFullscreen()
@@ -285,7 +288,7 @@ export const DocxGenerator: React.FC = () => {
           </div>
 
           <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <Button onClick={(e)=> generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField)} variant="fill" color="primary" >导出 Word 文档</Button>
+            <Button onClick={(e)=> generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField)} variant="fill" color="primary" size="small" >导出 Word 文档</Button>
           </div>
         </div>
       }
@@ -304,7 +307,7 @@ export const DocxGenerator: React.FC = () => {
           <div>请设置一个存储word模板的附件字段</div>
 
           <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <Button onClick={() => openSettingArea()} variant="fill" color="primary" >前往设置</Button>
+            <Button onClick={() => openSettingArea()} variant="fill" color="primary" size="small" >前往设置</Button>
           </div>
         </div>
       }
