@@ -125,7 +125,7 @@ function parser(tag) {
       console.log({ tag, scope, context })
       if (["$index", "$序号"].includes(tag)) {
         const indexes = context.scopePathItem
-        return indexes[indexes.length]
+        return indexes[indexes.length - 1] + 1
       }
       return scope[tag]
     },
