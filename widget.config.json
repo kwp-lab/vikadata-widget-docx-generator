@@ -1,13 +1,13 @@
 {
-  "packageId": "wpksQCY82kXTP",
-  "spaceId": "spcBcZN1UZZJz",
+  "packageId": "wpkoYG23U8fKD",
+  "spaceId": "spczdmQDfBAn5",
   "entry": "./src/index.ts",
   "name": {
     "zh-CN": "Word文档生成器",
     "en-US": "Word Document Generator"
   },
   "icon": "./package_icon.png",
-  "cover": "./cover.png",
+  "cover": "./cover.jpg",
   "authorName": "Kelvin.Poon",
   "authorIcon": "./author_icon.png",
   "authorLink": "vika.cn",

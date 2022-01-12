@@ -45,3 +45,4 @@ lerna-debug.log*
 yarn.lock
 widget.config_*
 package-lock.json
+/.vika_*
