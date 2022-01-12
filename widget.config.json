@@ -8,12 +8,13 @@
   },
   "icon": "./package_icon.png",
   "cover": "./cover.jpg",
-  "authorName": "Kelvin.Poon",
+  "authorName": "vika实验室",
   "authorIcon": "./author_icon.png",
   "authorLink": "vika.cn",
   "authorEmail": "panjiawen@vikadata.com",
   "description": {
     "zh-CN": "根据docx模板，一键批量填充字段并合成新的word文档",
     "en-US": "create docx attachment with fields in record and specified template"
-  }
+  },
+  "globalPackageId": "wpkIXaCPTCI8A"
 }
