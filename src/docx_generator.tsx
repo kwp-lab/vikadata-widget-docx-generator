@@ -1,10 +1,12 @@
-import { useRecord, useRecords, useFields, useActiveViewId, useSelection, useCloudStorage, useSettingsButton, useViewport, useField, Field, Record, IAttachmentValue, usePrimaryField, FieldType, useDatasheet, Datasheet } from '@vikadata/widget-sdk';
+import { useRecords, useFields, useActiveViewId, useSelection, useCloudStorage, useSettingsButton, useViewport, useField, Field, Record, IAttachmentValue, usePrimaryField, FieldType, useDatasheet, Datasheet } from '@vikadata/widget-sdk';
 import { Button } from '@vikadata/components';
 import React, { useEffect, useState } from 'react';
 import Docxtemplater from 'docxtemplater';
+import {DXT} from 'docxtemplater';
 import PizZip from 'pizzip';
 import PizZipUtils from 'pizzip/utils/index.js';
 import { saveAs } from 'file-saver';
+
 
 const userToken = ""
 
@@ -81,7 +83,7 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
     const filename = record.getCellValueString(primaryField.id) || "未命名"
 
     fields.forEach(field => {
-      row[field.name] = record.getCellValue(field.id) || "(空值)"
+      row[field.name] = record.getCellValue(field.id) || ""
       if(field.type == FieldType.MagicLink){
         // ttt.setLinkedInfo({
         //   ...ttt.linkedInfo,
@@ -93,6 +95,10 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
         //   datasheetId: field.property.foreignDatasheetId,
         //   recordIds: [ row[field.name][0].recordId ]
         // })
+      } else if(field.type == FieldType.MultiSelect){
+        row[field.name] = row[field.name].map(item => {
+          return item.name
+        })
       }
     })
 
@@ -115,21 +121,70 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
 }
 
 /**
- * Docxtemplater 自定义标签解析器
- * @param tag 标签名称，eg: {产品名称} 
- * @returns 
- */
-function parser(tag) {
+       * Docxtemplater 自定义标签解析器
+       * @param tag 标签名称，eg: {产品名称} 
+       * @returns 
+       */
+ const customParser = (tag) => {
+  const isTernaryReg = new RegExp(/(.*)\?(.*)\:(.*)/)
+
+  // 这是一个三元表达式
+  const TernaryResult = isTernaryReg.exec(tag)
+  console.log("TernaryResult111", TernaryResult)
+  var data1 = "";
+  var data2 = "";
+  if(TernaryResult !== null){
+    tag = TernaryResult[1]
+    data1 = TernaryResult[2]
+    data2 = TernaryResult[3]
+    console.log("TernaryResult222", [, tag, data1, data2])
+  }
+
   return {
-    get(scope, context) {
-      console.log({ tag, scope, context })
+    get(scope, context: DXT.ParserContext) {
+      console.log({ tag, scope, context, TernaryResult })
+
       if (["$index", "$序号"].includes(tag)) {
         const indexes = context.scopePathItem
         return indexes[indexes.length - 1] + 1
+        
+      } else if(tag === "$isLast"){
+        const totalLength = context.scopePathLength[context.scopePathLength.length - 1]
+        const index = context.scopePathItem[context.scopePathItem.length - 1]
+        return index === totalLength - 1
+
+      } else if(tag == "$isFirst"){
+        const index = context.scopePathItem[context.scopePathItem.length - 1]
+        return index === 0
+      } else if(tag.match(/(.*)\|find\((.*)\)/) !== null) {
+        let [, fieldName, valueToFind] = tag.match(/(.*)\|find\((.*)\)/)
+        fieldName = fieldName.trim()
+        valueToFind = valueToFind.trim()
+        console.log("detect find()", [fieldName, valueToFind, scope])
+        if(fieldName && valueToFind && scope[fieldName] && Array.isArray(scope[fieldName])){
+          const result =scope[fieldName].find(arrayItem => {
+            if(typeof arrayItem == "string"){
+              return (arrayItem==valueToFind) ? true : false
+            }
+            return false
+          })
+          return result ? true : false
+        }
+      } else if( tag.indexOf("==")>0 ){
+
+          let [leftVal, rightVal] = tag.split("==")
+          leftVal = leftVal.trim()
+          rightVal = rightVal.trim().replace(/(“|”|’|‘|"|')/g, '')
+          console.log("比较", {tag, leftVal, rightVal, scopeLeftVal: scope[leftVal], TernaryResult})
+          if(TernaryResult !== null){
+            return (scope[leftVal] === rightVal) ? TernaryResult[2] : TernaryResult[3]
+          }else{
+            return (scope[leftVal] == rightVal) ? scope[leftVal] : ""
+          }
       }
       return scope[tag]
-    },
-  };
+    }
+  }
 }
 
 /**
@@ -145,13 +200,16 @@ function generateDocument(row: any, selectedAttachment: IAttachmentValue, filena
     const zip = new PizZip(content)
 
     try {
+
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
-        parser
+        parser: customParser,
       })
 
-      doc.setData(row)
+      doc.setData({...row, userGreeting: (scope) => {
+        return "How is it going, " + scope.user + " ? ";
+    }})
 
       try {
         doc.render();
@@ -167,6 +225,7 @@ function generateDocument(row: any, selectedAttachment: IAttachmentValue, filena
 
       saveAs(out, filename + ".docx")
     } catch (error) {
+      console.log("错误信息", error)
       alert(`文件 ${selectedAttachment.name} 的模板语法不正确，请检查`)
     }
 
