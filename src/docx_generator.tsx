@@ -96,6 +96,7 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
         //   recordIds: [ row[field.name][0].recordId ]
         // })
       } else if(field.type == FieldType.MultiSelect){
+        row[field.name] = record.getCellValue(field.id) || []
         row[field.name] = row[field.name].map(item => {
           return item.name
         })
