@@ -1,5 +1,6 @@
 {
-  "version": "0.1.7",
+  "name": "word-document-generator",
+  "version": "0.1.10",
   "description": "a vika widget",
   "engines": {
     "node": ">=8.x"

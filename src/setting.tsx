@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSettingsButton, useCloudStorage, FieldPicker, useActiveViewId, useFields, useViewIds } from '@vikadata/widget-sdk';
+import { InformationSmallOutlined } from '@vikadata/icons';
 
 export const Setting: React.FC = () => {
   const [isShowingSettings] = useSettingsButton()
@@ -23,7 +24,7 @@ export const Setting: React.FC = () => {
 
   return isShowingSettings ? (
     <div style={{ flexShrink: 0, width: '300px', borderLeft: 'solid 1px gainsboro', paddingLeft: '16px', paddingTop: '40px', paddingRight: '16px', backgroundColor: '#fff' }}>
-      <h3>配置</h3>
+      <h3>配置 <a style={{verticalAlign: "middle"}} title="查看教程" target="_blank" href="https://bbs.vika.cn/article/111" ><InformationSmallOutlined size={16}  /></a> </h3>
       <div style={{ marginTop: '16px' }}>
         <label style={{ fontSize: '12px', color: '#999' }}>请选择 word 模板所在的附件列名</label>
         <FieldPicker viewId={activeViewId?activeViewId:viewIds[0]} fieldId={fieldId} onChange={option => checkAndUpdateSelectedAttachmentField(option.value)} />

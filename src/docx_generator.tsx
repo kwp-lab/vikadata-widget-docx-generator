@@ -1,5 +1,6 @@
-import { useRecords, useFields, useActiveViewId, useSelection, useCloudStorage, useSettingsButton, useViewport, useField, Field, Record, IAttachmentValue, usePrimaryField, FieldType, useDatasheet, Datasheet } from '@vikadata/widget-sdk';
+import { useRecords, useFields, useActiveViewId, useSelection, useCloudStorage, useSettingsButton, useViewport, useField, Field, Record, IAttachmentValue, usePrimaryField, FieldType, useDatasheet } from '@vikadata/widget-sdk';
 import { Button } from '@vikadata/components';
+import { InformationSmallOutlined } from '@vikadata/icons';
 import React, { useEffect, useState } from 'react';
 import Docxtemplater from 'docxtemplater';
 import {DXT} from 'docxtemplater';
@@ -85,16 +86,7 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
     fields.forEach(field => {
       row[field.name] = record.getCellValue(field.id) || ""
       if(field.type == FieldType.MagicLink){
-        // ttt.setLinkedInfo({
-        //   ...ttt.linkedInfo,
-        //   datasheetId: field.property.foreignDatasheetId,
-        //   recordIds: [ row[field.name][0].recordId ]
-        // })
-        // console.log("x", ttt, {
-        //   ...ttt.linkedInfo,
-        //   datasheetId: field.property.foreignDatasheetId,
-        //   recordIds: [ row[field.name][0].recordId ]
-        // })
+        // TODO
       } else if(field.type == FieldType.MultiSelect){
         row[field.name] = record.getCellValue(field.id) || []
         row[field.name] = row[field.name].map(item => {
@@ -108,13 +100,19 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
     const attachements = record.getCellValue(selectedAttachmentField.id)
     if (!attachements) {
       alert(`在指定的附件字段中找不到word模板，请上传。record:[${filename}]`)
-      continue
+      break
     }
     const attachmentName = attachements[0].name
 
-    console.log({ row, attachements })
-
     const prefix = attachmentName.substr(0, attachmentName.lastIndexOf("."))
+    const suffix = attachmentName.substr(attachmentName.lastIndexOf(".")).toLowerCase()
+
+    if(suffix !== ".docx"){
+      alert(`只支持.docx格式的word模板（当前模板：${attachmentName}）`)
+      break
+    }
+
+    console.log({ row, attachements, prefix, suffix })
 
     attachements && generateDocument(row, attachements[0], prefix + "-" + filename)
   }
@@ -122,23 +120,21 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
 }
 
 /**
-       * Docxtemplater 自定义标签解析器
-       * @param tag 标签名称，eg: {产品名称} 
-       * @returns 
-       */
+ * Docxtemplater 自定义标签解析器
+ * @param tag 标签名称，eg: {产品名称} 
+ * @returns 
+ */
  const customParser = (tag) => {
   const isTernaryReg = new RegExp(/(.*)\?(.*)\:(.*)/)
 
   // 这是一个三元表达式
   const TernaryResult = isTernaryReg.exec(tag)
-  console.log("TernaryResult111", TernaryResult)
   var data1 = "";
   var data2 = "";
   if(TernaryResult !== null){
     tag = TernaryResult[1]
     data1 = TernaryResult[2]
     data2 = TernaryResult[3]
-    console.log("TernaryResult222", [, tag, data1, data2])
   }
 
   return {
@@ -157,6 +153,7 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
       } else if(tag == "$isFirst"){
         const index = context.scopePathItem[context.scopePathItem.length - 1]
         return index === 0
+
       } else if(tag.match(/(.*)\|find\((.*)\)/) !== null) {
         let [, fieldName, valueToFind] = tag.match(/(.*)\|find\((.*)\)/)
         fieldName = fieldName.trim()
@@ -244,40 +241,25 @@ function generateDocument(row: any, selectedAttachment: IAttachmentValue, filena
  */
 function showReadmeInfo() {
   const wrapperStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '10px 20px'
+    width: "100%",
+    padding: "10px 20px",
+    display: "flex",
+    alignItems: "center",
+    height: "100%",
+    justifyContent: "center",
+    flexDirection: "column"
   }
-
-  const imgStyle: React.CSSProperties = {
-    width: '80%',
-    border: '1px solid #9484f1',
-    borderRadius: '4px',
-    margin: '0 auto',
-    display: 'block',
-    maxWidth: '800px'
-  }
-
 
   return (
     <div style={wrapperStyle}>
-      <h1>Word文档生成器</h1>
-      <h3><b>🤔 前言</b></h3>
-      <p>你有遇到过下面这些状况吗？<br />日复一日地填写多份相同格式的 Word 文档...<br />经常因为 Word 文档搬运而加班到深夜...</p>
-      <p>试试本小程序吧！让你从重复性的 Word 搬运工中解放出来！^0^</p>
-
-      <h3><b>🎨 简介</b></h3>
-      <p>本小程序可以将每一行数据填充到 Word 模板里面，从而形成一份新的 Word 文档。同时选中多行记录，即可实现批量导出 Word 文档。</p>
-      <p>例如一份《录取通知书》。在日常工作中，公司HR一天可能会发送多份《录取通知书》，里面的格式都是一样的，只是“岗位”，“部门”，“候选人姓名”，“通知日期”等等这些信息要素会有所不同，但HR却需要手工重复性地复制粘贴、复制粘贴...</p>
-      <p>使用本小程序后，只需要提前制作一次 Word 模板，往后的工作就只需要点一点手指头，小程序来帮你填充关键信息要素，并生成新的《录取通知书》！</p>
-
-      <h3><b>🎯 使用步骤</b></h3>
-      <p>1. 提前准备好 Word 模板，在 Word 模板里面目标位置填写好维格表里的对应列名，写法跟智能公式里引用单元格值一样，在列名左右两边加上花括号，例如“<code>{'\u007B'}候选人姓名{'\u007D'}</code>”</p>
-      <p>2. 将修改好的 Word 模板以附件形式上传到当前维格表的附件列里，如下图示例</p>
-      <p><img src="https://s1.vika.cn/space/2021/12/02/22202756884f485dbfce5e257000644c" alt="示意图" style={imgStyle} /></p>
-      <p>3. 在本界面右侧的配置区域选择 Word 模板所在的附件列名</p>
-      <p>4. 点击右上角按钮，退出小程序的“展开模式”</p>
-      <p>5. 在维格视图中选择若干行，然后点击小程序的“导出 Word 文档”</p>
-      <p style={{ textAlign: 'center' }} >------ 至此，可以开启高效办公之旅了 :） ------</p>
+      <div style={{fontSize: "1.5em", color: "#C8C8C8", marginBottom: "0.5em"}}>不支持在小程序展开状态下导出word文档</div>
+      <div>
+        <a style={{fontSize: "16px"}} href="https://bbs.vika.cn/article/111" target="_blank" >
+          <span style={{verticalAlign: "middle", lineHeight: "16px"}}>
+            <InformationSmallOutlined size={16} color="#7b67ee" />
+          </span> 查看教程
+        </a>
+      </div>
     </div>
   )
 }
@@ -285,11 +267,18 @@ function showReadmeInfo() {
 export const DocxGenerator: React.FC = () => {
   const { isFullscreen, toggleFullscreen } = useViewport()
   const [isShowingSettings, toggleSettings] = useSettingsButton()
+
   const activeViewId = useActiveViewId()
   const selection = useSelection()
   const selectionRecords = useRecords(activeViewId, { ids: selection?.recordIds })
   const fields = useFields(activeViewId)
   const primaryField = usePrimaryField() || fields[0]
+
+  const datasheet = useDatasheet()
+  
+  // 校验用户是否有新增记录的权限，从而判断用户对表格是否只读权限
+  const permission = datasheet?.checkPermissionsForAddRecord()
+
 
   // 读取配置
   const [fieldId] = useCloudStorage<string>('selectedAttachmentFieldId')
@@ -311,8 +300,12 @@ export const DocxGenerator: React.FC = () => {
   }, [selectionRecords.length, recordIds])
 
   const openSettingArea = function () {
-    !isFullscreen && toggleFullscreen()
-    !isShowingSettings && toggleSettings()
+    if(permission?.acceptable){
+      !isFullscreen && toggleFullscreen()
+      !isShowingSettings && toggleSettings()
+    }else{
+      alert("抱歉，只读权限无法进行此操作")
+    }
   }
 
   if (isFullscreen) {
@@ -327,9 +320,16 @@ export const DocxGenerator: React.FC = () => {
     height: '100%'
   }
 
+  const helpLink = (
+    <a style={{verticalAlign: "middle", position: "absolute", bottom: "8px", right: "8px", fontSize: "12px", color: "#8C8C8C"}} title="查看教程" target="_blank" href="https://bbs.vika.cn/article/111"  >
+      <span style={{verticalAlign: "middle", lineHeight: "16px"}}><InformationSmallOutlined size={12} color="#8C8C8C" /></span>
+      <span> 教程</span>
+    </a>
+  )
+
   return (
     <div style={style1}>
-
+      {helpLink} 
 
       {selectedAttachmentField &&
         <div>
@@ -344,11 +344,11 @@ export const DocxGenerator: React.FC = () => {
           </div>
 
           <div style={{ textAlign: 'center' }}>
-            {(selectedRecords.length > 0) && <div>已选中 <span style={{ color: '#fb4a43', fontWeight: 'bold', fontSize: '1.5em', }}>{selectedRecords.length}</span> 条记录</div>}
+            {(selectedRecords.length > 0) && <div>已选中 <span style={{ color: '#fb4a43', fontWeight: 'bold', fontSize: '1.5em', }}>{selectedRecords.length}</span> 条记录 </div>}
           </div>
 
           <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <Button onClick={(e)=> generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField)} variant="fill" color="primary" size="small" >导出 Word 文档</Button>
+            {(selectedRecords.length > 0) ? <Button onClick={(e)=> generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField)} variant="fill" color="primary" size="small" >导出 Word 文档</Button> : "请点击表格任意单元格"}
           </div>
         </div>
       }
