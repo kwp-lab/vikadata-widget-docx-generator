@@ -1,5 +1,5 @@
 import { useRecords, useFields, useActiveViewId, useSelection, useCloudStorage, useSettingsButton, useViewport, useField, Field, Record, IAttachmentValue, usePrimaryField, FieldType, useDatasheet } from '@vikadata/widget-sdk';
-import { Button } from '@vikadata/components';
+import { Button, IButtonProps } from '@vikadata/components';
 import { InformationSmallOutlined } from '@vikadata/icons';
 import React, { useEffect, useState } from 'react';
 import Docxtemplater from 'docxtemplater';
@@ -75,8 +75,12 @@ function throwError(error: any) {
 /**
  * 遍历已选择的多条 record ，从中获取数据并生成 word 文档
  */
-function generateDocuments(selectedRecords: Record[], fields: Field[], selectedAttachmentField: Field, primaryField: Field) {
+async function generateDocuments(selectedRecords: Record[], fields: Field[], selectedAttachmentField: Field, primaryField: Field) {
+  const outputZip = new PizZip();
 
+  // 鼠标只选择了一行
+  const single = selectedRecords.length>1 ? false : true;
+  var outputs = []
 
   for (let index = 0; index < selectedRecords.length; index++) {
     const record = selectedRecords[index]
@@ -92,10 +96,11 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
         row[field.name] = row[field.name].map(item => {
           return item.name
         })
+      } else if(field.type == FieldType.SingleSelect){
+        const selectOption = record.getCellValue(field.id)
+        row[field.name] = selectOption ? selectOption.name : ""
       }
     })
-
-    
 
     const attachements = record.getCellValue(selectedAttachmentField.id)
     if (!attachements) {
@@ -114,9 +119,45 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
 
     console.log({ row, attachements, prefix, suffix })
 
-    attachements && generateDocument(row, attachements[0], prefix + "-" + filename)
+    if(attachements) {
+      await generateDocument(row, attachements[0], prefix + "-" + filename, outputs)
+    }
   }
 
+  console.log("outputs", outputs)
+  if(outputs.length>0){
+    let existedFilenames:Array<string> = []
+    const outputFileName = !single ? `documents.zip` : (outputs[0] as any).filename + ".docx"
+
+    if(!single){
+      for (let index = 0; index < outputs.length; index++) {
+        const docxItem:any = outputs[index];
+        const uniqueFilename = getUniqueFilename(existedFilenames, docxItem.filename)
+        existedFilenames.push(uniqueFilename)
+        outputZip.file(uniqueFilename + ".docx", docxItem.content)
+      }
+      const content = outputZip.generate({ type: "blob" })
+      saveAs(content, outputFileName)
+    } else {
+      const outputZip = new PizZip((outputs[0] as any).content)
+      saveAs(outputZip.generate({ type: "blob" }), outputFileName)
+    }
+    
+  }
+
+}
+
+const getUniqueFilename = (existedFilenames, newFilename) => {
+  let targetFileName = newFilename
+  if (existedFilenames.indexOf(newFilename)>-1) {
+    for(var i=1; i<9999; i++){
+      targetFileName = newFilename + "_" + i
+        if (existedFilenames.indexOf(targetFileName) == -1) {
+            break;
+        }
+    }   
+  }
+  return targetFileName
 }
 
 /**
@@ -141,10 +182,13 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
     get(scope, context: DXT.ParserContext) {
       console.log({ tag, scope, context, TernaryResult })
 
+      if (tag === ".") {
+        return (typeof scope == "string") ? scope : JSON.stringify(scope)
+      }
+
       if (["$index", "$序号"].includes(tag)) {
         const indexes = context.scopePathItem
         return indexes[indexes.length - 1] + 1
-        
       } else if(tag === "$isLast"){
         const totalLength = context.scopePathLength[context.scopePathLength.length - 1]
         const index = context.scopePathItem[context.scopePathItem.length - 1]
@@ -188,52 +232,53 @@ function generateDocuments(selectedRecords: Record[], fields: Field[], selectedA
 /**
  * 调用第三方库，生成word文档并调起浏览器附件下载事件
  */
-function generateDocument(row: any, selectedAttachment: IAttachmentValue, filename: string) {
-
-  loadFile(selectedAttachment.url, function (error, content) {
-    if (error) {
-      throw error
-    }
-
-    const zip = new PizZip(content)
-
-    try {
-
-      const doc = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-        parser: customParser,
-      })
-
-      doc.setData({...row, userGreeting: (scope) => {
-        return "How is it going, " + scope.user + " ? ";
-    }})
-
-      try {
-        doc.render();
-      } catch (error: any) {
-        throwError(error)
+async function generateDocument(row: any, selectedAttachment: IAttachmentValue, filename: string, outputs: any) {
+  return new Promise<void>((resolve, reject) => {
+    loadFile(selectedAttachment.url, function (error, content: ArrayBuffer) {
+      if (error) {
+        throw error
       }
 
-      const out = doc.getZip().generate({
-        type: 'blob',
-        mimeType:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      });
+      if (0 == content.byteLength) {
+        return alert("Word模板文件的内容为空，请按照教程语法提前填写。")
+      }
 
-      saveAs(out, filename + ".docx")
-    } catch (error) {
-      console.log("错误信息", error)
-      alert(`文件 ${selectedAttachment.name} 的模板语法不正确，请检查`)
-    }
+      const zip = new PizZip(content)
 
+      try {
 
-    // await uploadAttachment(activeDatasheetId, out).then(res => {
-    //   console.log(res)
-    // })
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+          parser: customParser,
+        })
 
+        try {
+          doc.setData({...row}).render();
+        } catch (error: any) {
+          throwError(error)
+        }
 
-  });
+        const out = doc.getZip().generate({
+          type: 'arraybuffer',
+          mimeType:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+
+        outputs.push({
+          "content": out,
+          "filename": filename
+        })
+
+        //saveAs(out, filename + ".docx")
+        resolve()
+      } catch (error) {
+        console.log("错误信息", error)
+        alert(`文件 ${selectedAttachment.name} 的模板语法不正确，请检查`)
+        reject()
+      }
+    })
+  })
 }
 
 /**
@@ -285,6 +330,7 @@ export const DocxGenerator: React.FC = () => {
   const selectedAttachmentField = useField(fieldId)
 
   const [selectedRecords, setSelectedRecords] = useState<Record[]>([])
+  const [processing, setProcessing] = useState<Boolean>(false)
 
   const recordIds = selectionRecords.map((record: Record)=>{
     return record.recordId
@@ -327,6 +373,14 @@ export const DocxGenerator: React.FC = () => {
     </a>
   )
 
+  let btnProps:IButtonProps = {
+    variant: "fill",
+    color: "primary",
+    size:"small"
+  }
+
+  if(processing) btnProps.disabled = true;
+
   return (
     <div style={style1}>
       {helpLink} 
@@ -348,7 +402,20 @@ export const DocxGenerator: React.FC = () => {
           </div>
 
           <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            {(selectedRecords.length > 0) ? <Button onClick={(e)=> generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField)} variant="fill" color="primary" size="small" >导出 Word 文档</Button> : "请点击表格任意单元格"}
+            {
+              (selectedRecords.length > 0) ? 
+              <Button 
+                {...btnProps}
+                onClick={async(e)=> {
+                  setProcessing(true)
+                  await generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField)
+                  setProcessing(false)
+                }}
+              >
+                {!processing ? "导出 Word 文档" : "生成中，请稍候"}
+              </Button> :
+               "请点击表格任意单元格"
+            }
           </div>
         </div>
       }
@@ -362,7 +429,7 @@ export const DocxGenerator: React.FC = () => {
             alignItems: 'center',
             width: '100%'
           }}>
-            <img src='https://s1.vika.cn/space/2021/12/29/5a4c225aed81490583cedbecf4bc3419' style={{ width: '30%' }} />
+            <img src='https://s1.vika.cn/space/2021/12/29/5a4c225aed81490583cedbecf4bc3419' style={{ width: '48px' }} />
           </div>
           <div>请设置一个存储word模板的附件字段</div>
 

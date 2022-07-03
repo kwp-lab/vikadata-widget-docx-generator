@@ -11,7 +11,7 @@ export const WidgetDeveloperTemplate: React.FC = () => {
   const permission = datasheet?.checkPermissionsForAddRecord()
 
   return (
-    <div style={{ display: 'flex', height: '100%', backgroundColor: '#fff', borderTop: '1px solid gainsboro' }}>
+    <div style={{ display: 'flex', height: '100%', background: 'var(--defaultBg)', borderTop: '1px solid var(--lineColor)' }}>
       <div style={{ flexGrow: 1, overflow: 'auto', padding: '0 8px'}}>
         <DocxGenerator />
       </div>
