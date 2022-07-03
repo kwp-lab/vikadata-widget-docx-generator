@@ -16,5 +16,6 @@
     "zh-CN": "根据docx模板，一键批量填充字段并合成新的word文档",
     "en-US": "Create docx file with specified fields"
   },
-  "website": "https://bbs.vika.cn/article/111"
+  "website": "https://bbs.vika.cn/article/111",
+  "globalPackageId": "wpkIXaCPTCI8A"
 }
