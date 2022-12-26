@@ -7,6 +7,7 @@ import {DXT} from 'docxtemplater';
 import PizZip from 'pizzip';
 import PizZipUtils from 'pizzip/utils/index.js';
 import { saveAs } from 'file-saver';
+import { useHotkeys } from 'react-hotkeys-hook'
 
 
 const userToken = ""
@@ -75,7 +76,7 @@ function throwError(error: any) {
 /**
  * 遍历已选择的多条 record ，从中获取数据并生成 word 文档
  */
-async function generateDocuments(selectedRecords: Record[], fields: Field[], selectedAttachmentField: Field, primaryField: Field) {
+async function generateDocuments(selectedRecords: Record[], fields: Field[], selectedAttachmentField: Field, primaryField: Field, keepFormat: boolean) {
   const outputZip = new PizZip();
 
   // 鼠标只选择了一行
@@ -88,17 +89,26 @@ async function generateDocuments(selectedRecords: Record[], fields: Field[], sel
     const filename = record.getCellValueString(primaryField.id) || "未命名"
 
     fields.forEach(field => {
+      console.log({
+        "name": field.name,
+        "cellValue": record.getCellValue(field.id) || "",
+        "cellValueString": record.getCellValueString(field.id) || ""
+      })
+
       row[field.name] = record.getCellValue(field.id) || ""
-      if(field.type == FieldType.MagicLink){
+
+      if (field.type == FieldType.MagicLink) {
         // TODO
-      } else if(field.type == FieldType.MultiSelect){
+      } else if (field.type == FieldType.MultiSelect) {
         row[field.name] = record.getCellValue(field.id) || []
         row[field.name] = row[field.name].map(item => {
           return item.name
         })
-      } else if(field.type == FieldType.SingleSelect){
+      } else if (field.type == FieldType.SingleSelect) {
         const selectOption = record.getCellValue(field.id)
         row[field.name] = selectOption ? selectOption.name : ""
+      } else if (keepFormat && [FieldType.Number, FieldType.Currency, FieldType.Percent, FieldType.DateTime].includes(field.type)) {
+        row[field.name] = record.getCellValueString(field.id) || ""
       }
     })
 
@@ -326,6 +336,7 @@ export const DocxGenerator: React.FC = () => {
 
 
   // 读取配置
+  const [keepFormat] = useCloudStorage<boolean>('keepFormat', true)
   const [fieldId] = useCloudStorage<string>('selectedAttachmentFieldId')
   const selectedAttachmentField = useField(fieldId)
 
@@ -408,7 +419,7 @@ export const DocxGenerator: React.FC = () => {
                 {...btnProps}
                 onClick={async(e)=> {
                   setProcessing(true)
-                  await generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField)
+                  await generateDocuments(selectedRecords, fields, selectedAttachmentField, primaryField, keepFormat)
                   setProcessing(false)
                 }}
               >
